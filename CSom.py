@@ -1,13 +1,14 @@
 import CNode
 import math
 import numpy as np
+import copy
 from CNode import *
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 class CSom:
-    def __init__(self, MapSize, corpus, numIterations, constStartLearningRate=0.1, ThreshHold=0.1):
-
+    def __init__(self, MapSize, corpus, numIterations, constStartLearningRate=0.1):
+        self.corpus = copy.copy(corpus)
         self.numIterations = numIterations
         self.dMapRadius = MapSize / 2
         self.dTimeConstant = numIterations / math.log(self.dMapRadius)
@@ -15,15 +16,14 @@ class CSom:
         PNodes = TfidfVectorizer()
         self.PNodes = PNodes.fit_transform(corpus).todense()
         NodeDimension = self.PNodes.shape[1]
-        self.m_Som = np.full((MapSize, MapSize), CNode(NodeDimension), dtype=object)
-        self.ThreshHold = ThreshHold
+        self.m_Som = np.asarray([[CNode(NodeDimension) for j in range(MapSize)] for i in range(MapSize)])
 
     def FindBestMatchingNode(self, inputPNode):
         LowestDistance = 999999
         winner = None
-        inputPNode = np.squeeze(np.asarray(inputPNode))
+        PNode = np.squeeze(np.asarray(inputPNode))
         for iy, ix in np.ndindex(self.m_Som.shape):
-            dist = self.m_Som[iy, ix].CalculateDistance(inputPNode)
+            dist = self.m_Som[iy, ix].CalculateDistance(PNode)
             if dist < LowestDistance:
                 LowestDistance = dist
                 winner = self.m_Som[iy, ix]
@@ -40,8 +40,9 @@ class CSom:
 
                 if DistToNodeSq < dNeighbourhoodRadius ** 2:
                     self.dInfluence = math.exp(-(DistToNodeSq) / (2 * WidthSq))
-                    self.m_Som[iy, ix].AdjustWeights(np.squeeze(np.asarray(self.PNodes[randomPNode])), self.dLearningRate, self.dInfluence)
+                    self.m_Som[iy, ix].AdjustWeights(np.squeeze(np.asarray(self.PNodes[randomPNode])),
+                                                     self.dLearningRate, self.dInfluence)
             self.dLearningRate = self.dLearningRate * math.exp(-float(i) / (self.numIterations - i))
         for i in range(self.PNodes.shape[0]):
             SuitNode = self.FindBestMatchingNode(self.PNodes[i])
-            SuitNode.addPNode(self.PNodes[i])
+            SuitNode.addPNode(self.corpus[i],self.PNodes[i])
