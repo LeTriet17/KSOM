@@ -7,6 +7,7 @@ class CNode:
         self.dWeights = np.random.normal(0, 1, numWeights)
         self.PNodes = []
 
+
     def CalculateDistance(self, InputNode):
         distance = 0
         for i in range(len(InputNode)):
