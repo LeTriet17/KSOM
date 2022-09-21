@@ -1,4 +1,4 @@
 class PNode:
-    def __init__(self,corpus,vector):
+    def __init__(self,corpus,vectors):
         self.corpus = corpus
-        self.vector = vector
+        self.vector = vectors

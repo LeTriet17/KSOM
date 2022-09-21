@@ -6,17 +6,19 @@ class CNode:
     def __init__(self, numWeights):
         self.dWeights = np.random.normal(0, 1, numWeights)
         self.PNodes = []
-
+        self.represent_vector=None
 
     def CalculateDistance(self, InputNode):
-        distance = 0
-        for i in range(len(InputNode)):
-            distance += (InputNode[i] - self.dWeights[i]) * (InputNode[i] - self.dWeights[i])
-        return distance
+        temp = self.dWeights - InputNode
+        sum_sq = np.dot(temp.T, temp)
+        return sum_sq
 
     def AdjustWeights(self, target, LearningRate, Influence):
-        for i in range(len(target)):
-            self.dWeights[i] += LearningRate * Influence * (target[i] - self.dWeights[i])
+            self.dWeights += LearningRate * Influence * (target - self.dWeights)
 
     def addPNode(self, corpus, inputPNode):
         self.PNodes.append(PNode(corpus, inputPNode))
+        return
+    
+    def __str__(self):
+      return np.array2string(self.dWeights)
