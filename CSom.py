@@ -1,3 +1,4 @@
+import pickle
 import CNode
 import math
 import numpy as np
@@ -30,7 +31,7 @@ class CSom:
 
     def FindBestMatchingNode(self, inputPNode):
         LowestDistance = 999999
-        SecDistance = 999999
+        # SecDistance = 999999
         winner = None
         PNode = np.squeeze(np.asarray(inputPNode))
         for iy, ix in np.ndindex(self.m_Som.shape):
@@ -46,7 +47,7 @@ class CSom:
                 winner = self.m_Som[iy, ix]
                 win_x=ix
                 win_y=iy
-        return winner, ix, iy
+        return winner, win_x, win_y
 
     def Train(self):
         print("Start Training")
@@ -64,10 +65,10 @@ class CSom:
                     self.m_Som[iy, ix].AdjustWeights(np.squeeze(np.asarray(self.PNodes[randomPNode])),
                                                      self.dLearningRate, self.dInfluence)
             self.dLearningRate = self.constLearningRate * math.exp(-float(i) / (self.dTimeConstant))
-            if i%5==0:
-              with open('ksom.txt', 'w') as f:
-                for iy, ix in np.ndindex(self.m_Som.shape):
-                  f.write(f"{iy} {ix} {self.m_Som[iy,ix]} \n")
+            # if i%5==0:
+            #   with open('ksom.txt', 'w') as f:
+            #     for iy, ix in np.ndindex(self.m_Som.shape):
+            #       f.write(f"{iy} {ix} {self.m_Som[iy,ix]} \n")
 
 
         # for i in range(self.PNodes.shape[0]):
@@ -88,4 +89,7 @@ class CSom:
         plt.imshow(data2D, cmap=cmap, vmin=0)
         plt.colorbar(extend='min', extendrect=True)
         plt.show()
+    
+    def save(self, oup):
+        pickle.dump(self, oup, pickle.HIGHEST_PROTOCOL)
 
