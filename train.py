@@ -6,93 +6,21 @@ import pymongo
 import re
 import sys
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import pickle 
-
+from utils import *
 import unicodedata as ud
+import scipy
 
-client = pymongo.MongoClient("mongodb+srv://fbfighter:fbfighter@fb-topic.ixbkp2u.mongodb.net/?retryWrites=true&w=majority")
+processed_data=load_data('../data_preprocess')
 
-db = client["fakenews"]
+data_unlabeled = [x[:-1] for x in processed_data]
 
-col = db["fbpost"]
-
-data = col.find()
-
-corpus = []
-labels = []
-
-letters = string.ascii_lowercase
-
-print("Start preprocess")
-
-for x in data:
-  if 'is_fakenew' in x:
-    corpus.append(x['text'])
-    labels.append(x['is_fakenew'])
-
-print(f"length labeled data: {len(labels)}")
-
-def preprocess_text(text):
-    special_char = ['̼', '“', '”', '–']
-    punctualtion_list = string.punctuation + "".join(special_char)
-    removed_punctuation = "".join([i for i in text if i not in punctualtion_list])
-    lower_case = removed_punctuation.lower()
-    # translated_text = lower_case.translate(translator)
-    # return translated_text
-    
-    return lower_case
-
-# # for i in clean_text:
-# #     print("post-----------")
-# #     print(i)
-
-def find_special_char(text):
-    regex = "[^a-z0-9A-Z_\sÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễếệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ]"
-    set_char = set(re.findall(regex, text))
-    return set_char
-
-def replace_special_char(text):
-    mapping_list = {}
-    set_char = find_special_char(text)
-    for char in set_char:
-        try:
-            char_name = ud.name(char)
-            letter = char_name.split(' ')[-1].lower()
-            if letter in string.ascii_lowercase:
-                mapping_list[ord(char)] = letter
-        except:
-            pass
-    return text.translate(str.maketrans(mapping_list))
-
-clean_text = list(map(preprocess_text, corpus))
-clean_text2 = list(map(replace_special_char, clean_text))
-
-
-
-def tokenization(text):
-    tokens = re.split('\s+', text)
-    return tokens
-
-token_text_list = list(map(tokenization, clean_text2))
-
-# for i in token_text_list[:20]:
-#   print(i)
-
-labeled_data = list(zip(token_text_list, labels))
-
-with open('./data_preprocess', 'wb') as f:
-    pickle.dump(labeled_data, f, pickle.HIGHEST_PROTOCOL) 
-
-
-print(len(token_text_list))
+print(data_unlabeled[1])
 print("Done Preprocess")
 
-def identity_tokenizer(text):
-    return text
 
-
-model = CSom(16, token_text_list, 3000)
+doc_2_vec = TfidfVectorizer(tokenizer=identity_tokenizer, max_features=3000, lowercase=False)
+model = CSom(16, data_unlabeled, [0.2, 0.8], 2 ,3000, doc_2_vec)
 model.Train()
 # PNodes = TfidfVectorizer()
 # PNodes = PNodes.fit_transform(corpus_val).todense()
@@ -104,7 +32,7 @@ model.Train()
 #     SuitNode.addPNode(corpus_val[i], PNodes[i])
 
 print("Saving Model...")
-ksom_Weights=open('ksom.ckpt', 'wb')
+ksom_Weights=open('../ksoms.ckpt', 'wb')
 model.save(ksom_Weights)
 print("Finish Saving Model")
 

@@ -7,35 +7,41 @@ from CNode import *
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from matplotlib import pyplot as plt
-
-def identity_tokenizer(text):
-    return text
-
+from utils import identity_tokenizer
+import scipy
 
 class CSom:
-    def __init__(self, MapSize, corpus, numIterations, constStartLearningRate=0.5):
+    def __init__(self, MapSize, feature_post, bias, numComponent, numIterations, doc_2_vectorizer, constStartLearningRate=0.5):
+        self.numComponent = numComponent
         self.MapSize = MapSize
-        self.corpus = corpus
+        self.corpus = [post[0] for post in feature_post]
+        # print(self.corpus[1])
         self.numIterations = numIterations
         self.dMapRadius = MapSize / 2
         self.dTimeConstant = numIterations / math.log(self.dMapRadius)
         self.dLearningRate = constStartLearningRate
         self.constLearningRate = constStartLearningRate
+        self.bias = bias
+        self.doc_2_vectorizer = doc_2_vectorizer
         print("Start TFIDF")
-        PNodes = TfidfVectorizer(tokenizer=identity_tokenizer, lowercase=False)
-        self.PNodes = PNodes.fit_transform(corpus).todense()
+        self.PNodes_content_endcode = self.doc_2_vectorizer.fit_transform(self.corpus).todense()
+        self.PNodes_writingstyle_encode = np.array([post[1] for post in feature_post])
+        # print(self.PNodes_writingstyle_encode[1])
+        # print(np.squeeze(np.asarray(self.PNodes_content_endcode[0])))
+        self.PNodes=np.asarray([PNode(corpus=self.corpus[i], num_component=self.numComponent, vectors=[np.squeeze(np.asarray(self.PNodes_content_endcode[i])), self.PNodes_writingstyle_encode[i]]) for i in range(len(self.corpus))])
         print("Done TFIDF")
-        print(self.PNodes[1])
-        NodeDimension = self.PNodes.shape[1]
-        self.m_Som = np.asarray([[CNode(NodeDimension) for j in range(MapSize)] for i in range(MapSize)])
+        # print(self.PNodes[1])
+        Node_content_Dimension = self.PNodes_content_endcode.shape[1]
+        Node_writingstyle_Dimension = self.PNodes_writingstyle_encode.shape[1]
+        self.m_Som = np.asarray([[CNode(self.numComponent, Node_content_Dimension, Node_writingstyle_Dimension) for j in range(MapSize)] for i in range(MapSize)])
 
     def FindBestMatchingNode(self, inputPNode):
         LowestDistance = 999999
         # SecDistance = 999999
         winner = None
-        PNode = np.squeeze(np.asarray(inputPNode))
+        PNode = inputPNode
         for iy, ix in np.ndindex(self.m_Som.shape):
-            dist = self.m_Som[iy, ix].CalculateDistance(PNode)
+            dist = self.m_Som[iy, ix].CalculateDistance_PNode2CNode(PNode, self.bias)
             if dist < LowestDistance:
                 # if len(self.m_Som[iy, ix].PNodes) > 0:
                 #     totalSim = 0
@@ -49,20 +55,26 @@ class CSom:
                 win_y=iy
         return winner, win_x, win_y
 
+    def CalculateDistance_PNode2CNode(self, inputPNode: PNode, inputCNode: CNode):
+        return inputCNode.CalculateDistance_PNode2CNode(inputPNode, self.bias)
+
+    def calcdistance2PNode(self, inputPNode1: PNode, inputPNode2: PNode):
+        return PNode.calcdistance2PNode(inputPNode1, inputPNode2, self.bias)
+
     def Train(self):
         print("Start Training")
         for i in range(self.numIterations):
             print(f"Epoch {i}")
             randomPNode = int(np.random.randint(self.PNodes.shape[0], size=1))
             WinningNode, grid_x, grid_y = self.FindBestMatchingNode(self.PNodes[randomPNode])
-            dNeighbourhoodRadius = self.dMapRadius * math.exp(-float(i) / self.dTimeConstant);
+            dNeighbourhoodRadius = self.dMapRadius * math.exp(-float(i) / self.dTimeConstant)
             WidthSq = dNeighbourhoodRadius * dNeighbourhoodRadius
             for iy, ix in np.ndindex(self.m_Som.shape):
                 DistToNodeSq = (iy-grid_y)*(iy-grid_y)+(ix-grid_x)*(ix-grid_x)
 
                 if True:
                     self.dInfluence = math.exp(-(DistToNodeSq) / (2 * WidthSq))
-                    self.m_Som[iy, ix].AdjustWeights(np.squeeze(np.asarray(self.PNodes[randomPNode])),
+                    self.m_Som[iy, ix].AdjustWeights(self.PNodes[randomPNode],
                                                      self.dLearningRate, self.dInfluence)
             self.dLearningRate = self.constLearningRate * math.exp(-float(i) / (self.dTimeConstant))
             # if i%5==0:
@@ -91,5 +103,5 @@ class CSom:
         plt.show()
     
     def save(self, oup):
-        pickle.dump(self, oup, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(self, oup)
 
